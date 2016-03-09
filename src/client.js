@@ -79,11 +79,12 @@ FSClient.prototype.is_enabled = function (feature_key, user_identifier) {
     } else {
         return new Promise(function(resolve) {
             if (feature.enabled && user_identifier) {
-                if (feature.include_users != [] && feature.include_users.indexOf(user_identifier) > -1) {
+                resolve(enabled_for_user(feature, user_identifier));
+                /*if (feature.include_users != [] && feature.include_users.indexOf(user_identifier) > -1) {
                     resolove(true);
                 } else if (feature.exclude_users != [] && feature.exclude_users.indexOf(user_identifier) > -1) {
                     resolve(false);
-                }
+                }*/
             }
 
             resolve(feature.enabled);
@@ -92,18 +93,29 @@ FSClient.prototype.is_enabled = function (feature_key, user_identifier) {
 }
 
 function get_feature(self, feature_key, user_identifier) {
-    var endpoint = 'feature/enabled';
+    var endpoint = 'feature';
+    var user_identifier = user_identifier || null;
     var payload = {feature_key: feature_key};
-    if (user_identifier) {
-        payload['user_identifier'] = user_identifier;
-    }
 
     return new Promise(function(resolve) {
         api_get(self, endpoint, payload)
             .then(function(result) {
-                resolve(result.enabled);
+                self.cache.set(feature_key, result);
+                if (result.enabled && user_identifier) {
+                    resolve(enabled_for_user(result, user_identifier));
+                } else {
+                    resolve(result.enabled);
+                }
             });
     });
+}
+
+function enabled_for_user(feature, user_identifier) {
+    if (feature.include_users != [] && feature.include_users.indexOf(user_identifier) > -1) {
+        return true;
+    } else if (feature.exclude_users != [] && feature.exclude_users.indexOf(user_identifier) > -1) {
+        return false;
+    }
 }
 
 function api_get(self, endpoint, payload) {
