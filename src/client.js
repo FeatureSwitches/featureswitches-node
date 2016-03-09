@@ -18,8 +18,11 @@ function FSClient (config) {
 
     this.cache_timeout = config.options.cache_timeout || 300;
     this.last_update = 0;
+    this.dirty_check_interval = config.options.dirty_check_interval || 10000;
 
     this.cache = new NodeCache({ stdTTL: this.cache_timeout });
+
+    this.dirty_check();
 }
 
 FSClient.prototype.sync = function () {
@@ -92,6 +95,29 @@ FSClient.prototype.is_enabled = function (feature_key, user_identifier) {
     }
 }
 
+FSClient.prototype.dirty_check = function () {
+    var endpoint = 'dirty-check';
+    var self = this;
+
+    api_get(self, endpoint)
+        .then(function(result) {
+            console.log("Remote Last Updated " + result.last_update + ", Local Last Updated " + self.last_update);
+            if (result.last_update > self.last_update) {
+                console.log("Dirty, syncing...");
+                self.sync()
+                    .then(function(result) {
+                        setTimeout(function() {
+                            self.dirty_check();
+                        }, self.dirty_check_interval);
+                    });
+            } else {
+                setTimeout(function() {
+                    self.dirty_check();
+                }, self.dirty_check_interval);
+            }
+        });
+}
+
 function get_feature(self, feature_key, user_identifier) {
     var endpoint = 'feature';
     var user_identifier = user_identifier || null;
@@ -117,6 +143,7 @@ function enabled_for_user(feature, user_identifier) {
         return false;
     }
 }
+
 
 function api_get(self, endpoint, payload) {
     var options = {
