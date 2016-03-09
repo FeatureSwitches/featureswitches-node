@@ -1,0 +1,28 @@
+{
+  "name": "featureswitches",
+  "version": "0.8.0",
+  "description": "Client for FeatureSwitches.com feature flags as a service",
+  "main": "./src",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/featureswitches/featureswitches-node.git"
+  },
+  "keywords": [
+    "featureswitches",
+    "client",
+    "feature flag"
+  ],
+  "author": "Joel Weirauch <joel@featureswitches.com> (https://featureswitches.com)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/featureswitches/featureswitches-node/issues"
+  },
+  "homepage": "https://github.com/featureswitches/fetureswitches-node",
+  "dependencies": {
+    "assert": "^1.3.0",
+    "bluebird": "^3.3.4",
+    "node-cache": "^3.2.0",
+    "restler": "^3.4.0"
+  },
+  "devDependencies": {}
+}
