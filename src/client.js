@@ -91,9 +91,11 @@ FSClient.prototype.is_enabled = function (feature_key, user_identifier) {
         return new Promise(function(resolve) {
             if (feature.enabled && user_identifier) {
                 resolve(enabled_for_user(feature, user_identifier));
+            } else if (!user_identifier && (feature.include_users.length > 0 || feature.exclude_users.length > 0)){
+                resolve(false);
+            } else {
+                resolve(feature.enabled);
             }
-
-            resolve(feature.enabled);
         });
     }
 }
@@ -135,6 +137,8 @@ function get_feature(self, feature_key, user_identifier) {
                     self.cache.set(feature_key, result);
                     if (result.enabled && user_identifier) {
                         resolve(enabled_for_user(result, user_identifier));
+                    } else if (!user_identifier && (feature.include_users.length > 0 || feature.exclude_users.length > 0)){
+                        resolve(false);
                     } else {
                         resolve(result.enabled);
                     }
@@ -144,11 +148,13 @@ function get_feature(self, feature_key, user_identifier) {
 }
 
 function enabled_for_user(feature, user_identifier) {
-    if (feature.include_users != [] && feature.include_users.indexOf(user_identifier) > -1) {
+    if (feature.include_users.length > 0 && feature.include_users.indexOf(user_identifier) > -1) {
         return true;
-    } else if (feature.exclude_users != [] && feature.exclude_users.indexOf(user_identifier) > -1) {
+    } else if (feature.exclude_users > 0 && feature.exclude_users.indexOf(user_identifier) > -1) {
         return false;
     }
+
+    return feature.enabled;
 }
 
 
