@@ -32,13 +32,17 @@ FSClient.prototype.sync = function () {
     return new Promise(function(resolve) {
         api_get(self, endpoint)
         .then(function(result) {
-            self.last_update = result.last_update;
+            if (result instanceof Error) {
+                resolve(result);
+            } else {
+                self.last_update = result.last_update;
 
-            result.features.forEach(function(item) {
-                self.cache.set(item.feature_key, item);
-            });
+                result.features.forEach(function(item) {
+                    self.cache.set(item.feature_key, item);
+                });
 
-            resolve(true);
+                resolve(true);
+            }
         });
     });
 };
@@ -57,10 +61,14 @@ FSClient.prototype.add_user = function (user_identifier, customer_identifier, na
     return new Promise(function(resolve) {
         api_post(self, endpoint, payload)
         .then(function(result) {
-            if (result.success) {
-                resolve(true);
+            if (result instanceof Error) {
+                resolve(result);
             } else {
-                resolve(false);
+                if (result.success) {
+                    resolve(true);
+                } else {
+                    resolve(false);
+                }
             }
         });
     });
@@ -83,11 +91,6 @@ FSClient.prototype.is_enabled = function (feature_key, user_identifier) {
         return new Promise(function(resolve) {
             if (feature.enabled && user_identifier) {
                 resolve(enabled_for_user(feature, user_identifier));
-                /*if (feature.include_users != [] && feature.include_users.indexOf(user_identifier) > -1) {
-                    resolove(true);
-                } else if (feature.exclude_users != [] && feature.exclude_users.indexOf(user_identifier) > -1) {
-                    resolve(false);
-                }*/
             }
 
             resolve(feature.enabled);
@@ -126,11 +129,15 @@ function get_feature(self, feature_key, user_identifier) {
     return new Promise(function(resolve) {
         api_get(self, endpoint, payload)
             .then(function(result) {
-                self.cache.set(feature_key, result);
-                if (result.enabled && user_identifier) {
-                    resolve(enabled_for_user(result, user_identifier));
+                if (result instanceof Error) {
+                    resolve(result);
                 } else {
-                    resolve(result.enabled);
+                    self.cache.set(feature_key, result);
+                    if (result.enabled && user_identifier) {
+                        resolve(enabled_for_user(result, user_identifier));
+                    } else {
+                        resolve(result.enabled);
+                    }
                 }
             });
     });
@@ -156,8 +163,7 @@ function api_get(self, endpoint, payload) {
     return new Promise(function(resolve) {
         rest.get(API + endpoint, options).on('complete', function(result) {
             if (result instanceof Error) {
-                console.log('Error:', result.message);
-                resolve(result);
+                resolve(new Error('Error communicating with FeatureSwitches'));
             } else {
                 resolve(result);
             }
@@ -176,14 +182,12 @@ function api_post(self, endpoint, payload) {
     return new Promise(function(resolve) {
         rest.post(API + endpoint, options).on('complete', function(result) {
             if (result instanceof Error) {
-                console.log('Error:', result.message);
-                resolve(result);
+                resolve(new Error('Error communicating with FeatureSwitches'));
             } else {
                 resolve(result);
             }
         });
     });
 }
-
 
 module.exports = FSClient;
