@@ -18,7 +18,7 @@ function FSClient (config) {
 
     this.cache_timeout = config.options.cache_timeout || 300;
     this.last_update = 0;
-    this.dirty_check_interval = config.options.dirty_check_interval || 10000;
+    this.dirty_check_interval = config.options.dirty_check_interval * 1000 || 10000;
 
     this.cache = new NodeCache({ stdTTL: this.cache_timeout });
 
