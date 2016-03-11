@@ -10,6 +10,7 @@ $ npm install featureswitches
 ```
 
 ## Usage
+```javascript
 // Include and initialize FeatureSwitches
 var featureswitches = require('featureswitches')('customer_api_key', 'environment_api_key', {options});
 
