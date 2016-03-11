@@ -106,9 +106,7 @@ FSClient.prototype.dirty_check = function () {
 
     api_get(self, endpoint)
         .then(function(result) {
-            console.log("Remote Last Updated " + result.last_update + ", Local Last Updated " + self.last_update);
             if (result.last_update > self.last_update) {
-                console.log("Dirty, syncing...");
                 self.sync()
                     .then(function(result) {
                         setTimeout(function() {
