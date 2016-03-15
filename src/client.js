@@ -20,8 +20,9 @@ function FSClient (config) {
     this.last_update = 0;
     this.dirty_check_interval = config.options.dirty_check_interval * 1000 || 10000;
 
-    this.cache = new NodeCache({ stdTTL: this.cache_timeout });
+    this.cache = new NodeCache({ stdTTL: 0 });
 
+    this.last_dirty_check = 0;
     this.dirty_check();
 }
 
@@ -35,9 +36,10 @@ FSClient.prototype.sync = function () {
             if (!result.success) {
                 resolve(result);
             } else {
-                self.last_update = result.last_update;
+                var data = result.data;
+                self.last_update = data.last_update;
 
-                result.data.features.forEach(function(item) {
+                data.features.forEach(function(item) {
                     self.cache.set(item.feature_key, item);
                 });
 
@@ -83,7 +85,7 @@ FSClient.prototype.is_enabled = function (feature_key, user_identifier) {
     user_identifier = user_identifier || null;
 
     var feature = self.cache.get(feature_key);
-    if (feature == undefined) {
+    if (feature == undefined || self.cache_is_stale()) {
         return new Promise(function(resolve) {
             get_feature(self, feature_key, user_identifier)
                 .then(function(result) {
@@ -109,7 +111,14 @@ FSClient.prototype.dirty_check = function () {
 
     api_get(self, endpoint)
         .then(function(result) {
-            if (result.last_update > self.last_update) {
+            // Set a timestamp for the last dirty_check
+            if (result.success) {
+                self.last_dirty_check = parseInt(Date.now() / 1000);
+            }
+
+            var data = result.data;
+
+            if (data.last_update > self.last_update) {
                 self.sync()
                     .then(function(result) {
                         setTimeout(function() {
@@ -123,6 +132,14 @@ FSClient.prototype.dirty_check = function () {
             }
         });
 }
+
+FSClient.prototype.cache_is_stale = function () {
+    var timeout = parseInt(Date.now() / 1000) - this.cache_timeout;
+
+    if (this.last_dirty_check < timeout)
+        return true;
+    return false;
+};
 
 function get_feature(self, feature_key, user_identifier) {
     var endpoint = 'feature';
@@ -138,7 +155,7 @@ function get_feature(self, feature_key, user_identifier) {
                     self.cache.set(feature_key, result.data);
                     if (result.data.enabled && user_identifier) {
                         resolve(enabled_for_user(result.data, user_identifier));
-                    } else if (!user_identifier && (feature.include_users.length > 0 || feature.exclude_users.length > 0)){
+                    } else if (!user_identifier && (result.data.feature.include_users.length > 0 || result.data.feature.exclude_users.length > 0)){
                         resolve(false);
                     } else {
                         resolve(result.data.enabled);
@@ -173,7 +190,7 @@ function api_get(self, endpoint, payload) {
                 var response = {
                     success: false,
                     message: 'Error communicating with FeatureSwitches',
-                    statusCode: 500
+                    statusCode: -1
                 }
                 resolve(response);
             } else {
@@ -207,11 +224,21 @@ function api_post(self, endpoint, payload) {
     }
 
     return new Promise(function(resolve) {
-        rest.post(API + endpoint, options).on('complete', function(result) {
+        rest.post(API + endpoint, options).on('complete', function(data, result) {
             if (result instanceof Error) {
-                resolve(new Error('Error communicating with FeatureSwitches'));
+                var response = {
+                    success: false,
+                    message: 'Error communicating with FeatureSwitches',
+                    statusCode: -1
+                }
+                resolve(response);
             } else {
-                resolve(result);
+                var response = {
+                    success: true,
+                    message: '',
+                    data: data
+                }
+                resolve(response);
             }
         });
     });
