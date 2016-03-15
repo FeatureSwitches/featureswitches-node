@@ -66,15 +66,7 @@ FSClient.prototype.add_user = function (user_identifier, customer_identifier, na
     return new Promise(function(resolve) {
         api_post(self, endpoint, payload)
         .then(function(result) {
-            if (result instanceof Error) {
-                resolve(result);
-            } else {
-                if (result.success) {
-                    resolve(true);
-                } else {
-                    resolve(false);
-                }
-            }
+            resolve(result);
         });
     });
 };
@@ -233,12 +225,21 @@ function api_post(self, endpoint, payload) {
                 }
                 resolve(response);
             } else {
-                var response = {
-                    success: true,
-                    message: '',
-                    data: data
+                if (result.statusCode !== 200) {
+                    var response = {
+                        success: false,
+                        message: data.message,
+                        statusCode: result.statusCode
+                    }
+                    resolve(response);
+                } else {
+                    var response = {
+                        success: true,
+                        message: '',
+                        data: data
+                    }
+                    resolve(response);
                 }
-                resolve(response);
             }
         });
     });
