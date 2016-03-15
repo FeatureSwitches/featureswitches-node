@@ -32,16 +32,19 @@ FSClient.prototype.sync = function () {
     return new Promise(function(resolve) {
         api_get(self, endpoint)
         .then(function(result) {
-            if (result instanceof Error) {
+            if (!result.success) {
                 resolve(result);
             } else {
                 self.last_update = result.last_update;
 
-                result.features.forEach(function(item) {
+                result.data.features.forEach(function(item) {
                     self.cache.set(item.feature_key, item);
                 });
 
-                resolve(true);
+                var response = {
+                    success: true,
+                }
+                resolve(response);
             }
         });
     });
@@ -129,16 +132,16 @@ function get_feature(self, feature_key, user_identifier) {
     return new Promise(function(resolve) {
         api_get(self, endpoint, payload)
             .then(function(result) {
-                if (result instanceof Error) {
+                if (!result.success) {
                     resolve(result);
                 } else {
-                    self.cache.set(feature_key, result);
-                    if (result.enabled && user_identifier) {
-                        resolve(enabled_for_user(result, user_identifier));
+                    self.cache.set(feature_key, result.data);
+                    if (result.data.enabled && user_identifier) {
+                        resolve(enabled_for_user(result.data, user_identifier));
                     } else if (!user_identifier && (feature.include_users.length > 0 || feature.exclude_users.length > 0)){
                         resolve(false);
                     } else {
-                        resolve(result.enabled);
+                        resolve(result.data.enabled);
                     }
                 }
             });
@@ -165,11 +168,31 @@ function api_get(self, endpoint, payload) {
     }
 
     return new Promise(function(resolve) {
-        rest.get(API + endpoint, options).on('complete', function(result) {
+        rest.get(API + endpoint, options).on('complete', function(data, result) {
             if (result instanceof Error) {
-                resolve(new Error('Error communicating with FeatureSwitches'));
+                var response = {
+                    success: false,
+                    message: 'Error communicating with FeatureSwitches',
+                    statusCode: 500
+                }
+                resolve(response);
             } else {
-                resolve(result);
+                if (result.statusCode !== 200) {
+                    var response = {
+                        success: false,
+                        message: data.message,
+                        statusCode: result.statusCode
+                    }
+
+                    resolve(response);
+                } else {
+                    var response = {
+                        success: true,
+                        message: '',
+                        data: data
+                    }
+                    resolve(response);
+                } 
             }
         });
     });
