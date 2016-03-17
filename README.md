@@ -1,5 +1,5 @@
 # featureswitches-node
-A Node.js client for interacting with FeatureSwitches.com.  This library is under active development and is likely to change frequently.
+A Node.js client for interacting with [FeatureSwitches.com](https://featureswitches.com).  This library is under active development and is likely to change frequently.
 
 ## Installation
 
@@ -14,8 +14,14 @@ $ npm install featureswitches
 // Include and initialize FeatureSwitches
 var featureswitches = require('featureswitches')('customer_api_key', 'environment_api_key', {options});
 
-// Sync feature state with the dashboard
-featureswitches.sync();
+// Ensure that the API credentials are valid
+featureswitches.authenticate().then(function(result) {
+  if (result) {
+    // Authentication Successful
+  } else {
+    // Authentication Failed
+  }
+});
 
 // Add a user
 featureswitches.add_user('user_identifier', '[optional_customer_identifier]', '[optional_name]', '[optional_email'])
@@ -35,11 +41,11 @@ featureswitches.is_enabled('feature_key', '[optional_user_identifier]')
 ```
 
 ## Configuration Options
-A few options are available to be tweaked if you so choose.  The library makes use of a local cache to minimize requests back to the FeatureSwitches server.  Additionally, a dirty check it performed at an interval to automatically re-sync feature state when changes are made in the dashboard.
+A few options are available to be tweaked if you so choose.  The library makes use of a local cache to minimize requests back to the FeatureSwitches server.  Additionally, a check it performed at an interval to automatically re-sync feature state when changes are made in the dashboard.
 
 ```javascript
 {
   cache_timeout: SECONDS, // optional, defaults to 300 seconds
-  dirty_check_interval: SECONDS // optional, defaults to 10 seconds
+  check_interval: SECONDS // optional, defaults to 10 seconds
 }
 ```

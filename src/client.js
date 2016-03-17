@@ -18,13 +18,29 @@ function FSClient (config) {
 
     this.cache_timeout = config.options.cache_timeout || 300;
     this.last_update = 0;
-    this.dirty_check_interval = config.options.dirty_check_interval * 1000 || 10000;
+    this.check_interval = config.options.check_interval * 1000 || 10000;
 
     this.cache = new NodeCache({ stdTTL: 0 });
 
     this.last_dirty_check = 0;
     this.dirty_check();
 }
+
+FSClient.prototype.authenticate = function () {
+    var endpoint = 'authenticate';
+    var self = this;
+
+    return new Promise(function(resolve) {
+        api_get(self, endpoint)
+        .then(function(result) {
+            if (!result.success) {
+                resolve(false);
+            } else {
+                resolve(true);
+            }
+        });
+    });
+};
 
 FSClient.prototype.sync = function () {
     var endpoint = 'features';
@@ -116,12 +132,12 @@ FSClient.prototype.dirty_check = function () {
                     .then(function(result) {
                         setTimeout(function() {
                             self.dirty_check();
-                        }, self.dirty_check_interval);
+                        }, self.check_interval);
                     });
             } else {
                 setTimeout(function() {
                     self.dirty_check();
-                }, self.dirty_check_interval);
+                }, self.check_interval);
             }
         });
 }
