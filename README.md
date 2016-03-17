@@ -32,10 +32,10 @@ featureswitches.add_user('user_identifier', '[optional_customer_identifier]', '[
 // Check if a feature is enabled
 featureswitches.is_enabled('feature_key', '[optional_user_identifier]')
   .then(function(result) {
-    if (result instanceof Error) {
-      // Something went wrong making the request
+    if (result === true) {
+      // Feature is enabled, do something
     } else {
-      // Result is a boolean indicating if the feature is enabled
+      // Feature is disabled, do something else
     }
   });
 ```
