@@ -16,14 +16,21 @@ function FSClient (config) {
     this.environment_key = config.environment_key || process.env.ENVIRONMENT_API_KEY;
     assert(!!this.environment_key, 'An environment API key is required.');
 
-    this.cache_timeout = config.options.cache_timeout || 300;
+    if (config.options.cache_timeout !== 'undefined') {
+        this.cache_timeout = config.options.cache_timeout;
+    } else {
+        this.cache_timeout = 300;
+    }
+
     this.last_update = 0;
     this.check_interval = config.options.check_interval * 1000 || 10000;
 
     this.cache = new NodeCache({ stdTTL: 0 });
 
     this.last_dirty_check = 0;
-    this.dirty_check();
+    if (this.cache_timeout > 0) {
+        this.dirty_check();
+    }
 }
 
 FSClient.prototype.authenticate = function () {
@@ -103,13 +110,7 @@ FSClient.prototype.is_enabled = function (feature_key, user_identifier) {
         });
     } else {
         return new Promise(function(resolve) {
-            if (feature.enabled && user_identifier) {
-                resolve(enabled_for_user(feature, user_identifier));
-            } else if (!user_identifier && (feature.include_users.length > 0 || feature.exclude_users.length > 0)){
-                resolve(false);
-            } else {
-                resolve(feature.enabled);
-            }
+            resolve(enabled_for_user(feature, user_identifier));
         });
     }
 }
@@ -143,13 +144,17 @@ FSClient.prototype.dirty_check = function () {
 }
 
 FSClient.prototype.cache_is_stale = function (feature) {
-    var timeout = parseInt(Date.now() / 1000) - this.cache_timeout;
+    if (this.cache_timeout > 0) {
+        var timeout = parseInt(Date.now() / 1000) - this.cache_timeout;
 
-    if (feature.last_sync > timeout && this.last_dirty_check > timeout)
+        if (feature.last_sync > timeout && this.last_dirty_check > timeout)
+            return false;
+        if (this.last_dirty_check < timeout)
+            return true;
         return false;
-    if (this.last_dirty_check < timeout)
-        return true;
-    return false;
+    }
+
+    return true;
 };
 
 function get_feature(self, feature_key, user_identifier) {
@@ -163,25 +168,23 @@ function get_feature(self, feature_key, user_identifier) {
                 if (!result.success) {
                     resolve(result);
                 } else {
-                    var feature = result.data;
+                    var feature = result.data.feature;
                     feature.last_sync = parseInt(Date.now() / 1000);
                     self.cache.set(feature_key, feature);
-                    if (result.data.enabled && user_identifier) {
-                        resolve(enabled_for_user(result.data, user_identifier));
-                    } else if (!user_identifier && (result.data.feature.include_users.length > 0 || result.data.feature.exclude_users.length > 0)){
-                        resolve(false);
-                    } else {
-                        resolve(result.data.enabled);
-                    }
+                    resolve(enabled_for_user(result.data.feature, user_identifier));
                 }
             });
     });
 }
 
 function enabled_for_user(feature, user_identifier) {
-    if (feature.include_users.length > 0 && feature.include_users.indexOf(user_identifier) > -1) {
-        return true;
-    } else if (feature.exclude_users > 0 && feature.exclude_users.indexOf(user_identifier) > -1) {
+    if (feature.enabled && user_identifier) {
+        if (feature.include_users.length > 0 && feature.include_users.indexOf(user_identifier) > -1) {
+            return true;
+        } else if (feature.exclude_users > 0 && feature.exclude_users.indexOf(user_identifier) > -1) {
+            return false;
+        }
+    } else if (!user_identifier && (feature.include_users.length > 0 || feature.exclude_users.length > 0)) {
         return false;
     }
 
