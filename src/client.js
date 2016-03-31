@@ -101,18 +101,46 @@ FSClient.prototype.is_enabled = function (feature_key, user_identifier) {
     user_identifier = user_identifier || null;
 
     var feature = self.cache.get(feature_key);
-    if (feature == undefined || self.cache_is_stale(feature)) {
-        return new Promise(function(resolve) {
+
+    return new Promise(function(resolve) {
+        if (feature == undefined || self.cache_is_stale(feature)) {
             get_feature(self, feature_key, user_identifier)
+            .then(function(result) {
+                feature = result;
+                var enabled = enabled_for_user(feature, user_identifier);
+
+                if (enabled == false && feature.rollout_target > 0) {
+                    get_feature_enabled(self, feature.feature_key, user_identifier)
+                    .then(function(result) {
+                        if (result == true && self.cache_timeout > 0) {
+                            feature.include_users.push(user_identifier);
+                            self.cache.set(feature_key, feature);
+                        }
+
+                        resolve(result);
+                    });
+                } else {
+                    resolve(enabled);
+                }
+            });
+        } else {
+            var enabled = enabled_for_user(feature, user_identifier);
+
+            if (enabled == false && feature.rollout_target > 0) {
+                get_feature_enabled(self, feature.feature_key, user_identifier)
                 .then(function(result) {
+                    if (result == true && self.cache_timeout > 0) {
+                        feature.include_users.push(user_identifier);
+                        self.cache.set(feature_key, feature);
+                    }
+
                     resolve(result);
                 });
-        });
-    } else {
-        return new Promise(function(resolve) {
-            resolve(enabled_for_user(feature, user_identifier));
-        });
-    }
+            } else {
+                resolve(enabled);
+            }
+        }
+    });
 }
 
 FSClient.prototype.dirty_check = function () {
@@ -171,7 +199,7 @@ function get_feature(self, feature_key, user_identifier) {
                     var feature = result.data.feature;
                     feature.last_sync = parseInt(Date.now() / 1000);
                     self.cache.set(feature_key, feature);
-                    resolve(enabled_for_user(result.data.feature, user_identifier));
+                    resolve(feature);
                 }
             });
     });
@@ -183,14 +211,35 @@ function enabled_for_user(feature, user_identifier) {
             return true;
         } else if (feature.exclude_users > 0 && feature.exclude_users.indexOf(user_identifier) > -1) {
             return false;
+        } else if (feature.rollout_target > 0) {
+            return false;
         }
-    } else if (!user_identifier && (feature.include_users.length > 0 || feature.exclude_users.length > 0)) {
+    } else if (!user_identifier && (feature.rollout_target > 0 || feature.include_users.length > 0 || feature.exclude_users.length > 0)) {
         return false;
     }
 
     return feature.enabled;
 }
 
+function get_feature_enabled(self, feature_key, user_identifier) {
+    var endpoint = 'feature/enabled';
+    var user_identifier = user_identifier || null;
+    var payload = {
+        feature_key: feature_key,
+        user_identifier: user_identifier
+    };
+
+    return new Promise(function(resolve) {
+        api_get(self, endpoint, payload)
+        .then(function(result) {
+            if (!result.success) {
+                resolve(false);
+            } else {
+                resolve(result.data.enabled);
+            }
+        });
+    });
+}
 
 function api_get(self, endpoint, payload) {
     var options = {

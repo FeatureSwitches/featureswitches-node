@@ -1,6 +1,6 @@
 {
   "name": "featureswitches",
-  "version": "0.8.5",
+  "version": "0.8.6",
   "description": "Client for FeatureSwitches.com feature flags as a service",
   "main": "./src",
   "repository": {
